@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Log Servicio Técnico & Aplicaciones</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+    }
+    .modal {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+    }
+    .modal-box {
+      background-color: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+    }
+    .input {
+      padding: 0.5rem;
+      margin-top: 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 5px;
+      width: 100%;
+    }
+    .button {
+      margin-top: 1rem;
+      background-color: #3b82f6;
+      color: white;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      width: 100%;
+    }
+    .button:hover {
+      background-color: #2563eb;
+    }
+    .error-message {
+      color: #ef4444;
+      margin-top: 0.5rem;
+    }
+    .app-title {
+      background: linear-gradient(90deg, #1e3a8a, #3b82f6);
+      color: white;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: bold;
+    }
+    .app-title img {
+      margin-right: 0.5rem;
+    }
+    .card {
+      background-color: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 1rem;
+      position: relative;
+      box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .card-title {
+      font-size: 1rem;
+      font-weight: bold;
+      color: #2d3748;
+    }
+    .card-date {
+      font-size: 0.85rem;
+      color: #718096;
+    }
+    .card-buttons {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .card-icon {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+    .button-primary { background-color: #4a5568; color: white; }
+    .button-export { background-color: #48bb78; color: white; }
+    .button-export-excel { background-color: #fbbf24; color: white; }
+    .button-delete { background-color: #ef4444; color: white; }
+    .button-delete:hover { background-color: #dc2626; }
+    .status-label {
+      position: absolute;
+      top: -0.5rem;
+      left: -0.5rem;
+      font-size: 0.7rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      color: #fff;
+    }
+    .status-pendiente {
+      background-color: #e53e3e;
+    }
+    .status-finalizado {
+      background-color: #38b2ac;
+    }
+    .footer-text {
+      font-size: 0.75rem;
+      color: #718096;
+      text-align: center;
+      margin-top: 2rem;
+    }
+    .welcome-card {
+      background-color: #ffffff;
+      border-radius: 10px;
+      padding: 2rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      text-align: left;
+      margin-bottom: 2rem;
+    }
+    .welcome-card h2 {
+      font-size: 1.75rem;
+      font-weight: bold;
+      color: #1e3a8a;
+      margin-bottom: 1rem;
+    }
+    .welcome-card p {
+      font-size: 1rem;
+      color: #4a5568;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <div id="passwordModal" class="modal">
+    <div class="modal-box">
+      <h2 class="text-xl font-semibold">Introduce la Contraseña</h2>
+      <input type="password" id="passwordInput" class="input" placeholder="Contraseña" />
+      <button id="passwordButton" class="button">Entrar</button>
+      <div id="passwordError" class="error-message hidden">Contraseña incorrecta. Intenta de nuevo.</div>
+    </div>
+  </div>
+
+  <div id="serialModal" class="modal hidden">
+    <div class="modal-box">
+      <h2 class="text-xl font-semibold">Introducir Número de Serie</h2>
+      <input type="text" id="serialInput" class="input" placeholder="Introduce el número de serie" />
+      <input type="text" id="serialInputConfirm" class="input" placeholder="Repite el número de serie" />
+      <button id="serialButton" class="button">Confirmar</button>
+      <div id="serialError" class="error-message hidden">Los números de serie no coinciden. Intenta de nuevo.</div>
+    </div>
+  </div>
+
+  <div class="flex flex-col h-screen p-4 space-y-4">
+    <header class="app-title">
+      <img src="https://cdn-icons-png.flaticon.com/512/2721/2721291.png" alt="Log Icon" class="w-12 h-12">
+      Log Servicio Técnico & Aplicaciones
+    </header>
+
+    <div class="flex flex-1 bg-white rounded-lg shadow-lg overflow-hidden">
+      <aside class="w-1/4 bg-blue-50 p-4 overflow-y-auto flex flex-col">
+        <h2 class="text-lg font-semibold mb-4">Entradas</h2>
+        <ul id="entryList" class="space-y-2 flex-1">
+        </ul>
+        <button id="newEntryButton" class="bg-gray-300 text-gray-700 p-2 rounded mt-4 no-print">Nueva Entrada</button>
+        <button id="exportAllPDFButton" class="button-export p-2 rounded mt-4 no-print">Exportar en PDF</button>
+        <button id="exportExcelButton" class="button-export-excel p-2 rounded mt-4 no-print">Exportar en Excel</button>
+        <div class="footer-text">A.Blanch_2024</div>
+      </aside>
+
+      <main class="w-3/4 p-6 flex flex-col">
+        <div id="welcomeCard" class="welcome-card">
+          <h2>Bienvenido al Panel de Feedback de Log Servicio Técnico & Aplicaciones</h2>
+          <p>Esta herramienta está diseñada para facilitar la comunicación directa entre los técnicos de servicio técnico y aplicaciones. Aunque ya contamos con un software centralizado de registro de mantenimiento, esta aplicación local en cada escáner permite compartir observaciones, anotaciones técnicas y feedback específico de cada intervención.</p> 
+             <p>El objetivo es mejorar el soporte, reducir tiempos de respuesta y garantizar un historial detallado para cada equipo.</p>
+          <p>Por favor, utiliza este panel para agregar tus observaciones técnicas, compartir detalles importantes con otros técnicos y garantizar una colaboración más fluida.</p>
+        </div>
+
+        <form id="entryForm" class="flex flex-col space-y-4 hidden">
+          <h3 id="scannerSerialHeader" class="text-lg font-semibold text-blue-700"></h3>
+          <input type="text" id="entryTitle" class="p-2 border border-gray-300 rounded" placeholder="Título de la entrada" required>
+          <input type="text" id="entryTechnician" class="p-2 border border-gray-300 rounded" placeholder="Nombre del técnico" required>
+          <textarea id="entryContent" class="p-2 border border-gray-300 rounded h-64 resize-none" placeholder="Escribe aquí los detalles de tu entrada..." required></textarea>
+          <div>
+            <label for="entryStatus" class="mr-2">Estado:</label>
+            <select id="entryStatus" class="p-2 border border-gray-300 rounded">
+              <option value="Pendiente">Pendiente</option>
+              <option value="Finalizado">Finalizado</option>
+            </select>
+          </div>
+          <button type="submit" class="button-primary p-2 rounded">Guardar Entrada</button>
+        </form>
+
+        <div id="entryDisplay" class="bg-blue-50 p-6 rounded-lg shadow-md space-y-4 hidden">
+          <div class="header-info">
+            <p><strong>Número de serie:</strong> <span id="displaySerial"></span></p>
+            <h2 id="displayTitle" class="text-2xl font-bold text-blue-800 border-b-2 pb-2 mb-4">Título de la Entrada</h2>
+            <p><strong>Fecha:</strong> <span id="displayDate"></span></p>
+            <p><strong>Técnico:</strong> <span id="displayTechnician"></span></p>
+          </div>
+          <div>
+            <strong>Detalles:</strong>
+            <span id="displayContent" class="whitespace-pre-wrap entry-details-content"></span>
+          </div>
+        </div>
+
+        <div class="flex space-x-4 mt-6">
+          <button id="backButton" class="button-primary px-4 py-2 rounded hidden">Volver al Inicio</button>
+          <button id="exportPDFButton" class="button-export px-4 py-2 rounded hidden">Exportar en PDF</button>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const passwordModal = document.getElementById('passwordModal');
+      const passwordInput = document.getElementById('passwordInput');
+      const passwordButton = document.getElementById('passwordButton');
+      const passwordError = document.getElementById('passwordError');
+      const appPassword = "1234";
+
+      passwordButton.addEventListener('click', function () {
+        if (passwordInput.value === appPassword) {
+          passwordModal.style.display = 'none';
+          checkSerial();
+        } else {
+          passwordError.classList.remove('hidden');
+        }
+      });
+
+      passwordInput.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+          passwordButton.click();
+        }
+      });
+
+      const serialModal = document.getElementById('serialModal');
+      const serialInput = document.getElementById('serialInput');
+      const serialInputConfirm = document.getElementById('serialInputConfirm');
+      const serialButton = document.getElementById('serialButton');
+      const serialError = document.getElementById('serialError');
+
+      function checkSerial() {
+        let serial = localStorage.getItem('scannerSerial');
+        if (!serial) {
+          serialModal.classList.remove('hidden');
+        } else {
+          document.getElementById('scannerSerialHeader').textContent = `Número de serie del escáner: ${serial}`;
+          loadEntries();
+        }
+      }
+
+      serialButton.addEventListener('click', function () {
+        if (serialInput.value === serialInputConfirm.value) {
+          localStorage.setItem('scannerSerial', serialInput.value);
+          document.getElementById('scannerSerialHeader').textContent = `Número de serie del escáner: ${serialInput.value}`;
+          serialModal.classList.add('hidden');
+          loadEntries();
+        } else {
+          serialError.classList.remove('hidden');
+        }
+      });
+
+      const entryForm = document.getElementById('entryForm');
+      const entryList = document.getElementById('entryList');
+      const entryDisplay = document.getElementById('entryDisplay');
+      const welcomeCard = document.getElementById('welcomeCard');
+      const entryTitle = document.getElementById('entryTitle');
+      const entryTechnician = document.getElementById('entryTechnician');
+      const entryContent = document.getElementById('entryContent');
+      const entryStatus = document.getElementById('entryStatus');
+      const newEntryButton = document.getElementById('newEntryButton');
+      const backButton = document.getElementById('backButton');
+      const exportPDFButton = document.getElementById('exportPDFButton');
+      const exportAllPDFButton = document.getElementById('exportAllPDFButton');
+      const exportExcelButton = document.getElementById('exportExcelButton');
+      let currentIndex = null;
+
+      function loadEntries() {
+        const entries = JSON.parse(localStorage.getItem('entries')) || [];
+        renderEntryList(entries);
+      }
+
+      function renderEntryList(entries) {
+        entryList.innerHTML = '';
+
+        entries.forEach((entry, index) => {
+          const li = document.createElement('li');
+          li.className = 'card';
+          const statusClass = entry.status === 'Pendiente' ? 'status-pendiente' : 'status-finalizado';
+          li.innerHTML = `
+            <div class="status-label ${statusClass}">${entry.status}</div>
+            <div class="card-title">${entry.title}</div>
+            <div class="card-date">${entry.date}</div>
+            <div class="card-buttons">
+              <img src="https://cdn-icons-png.flaticon.com/512/545/545671.png" class="card-icon view-icon" title="Ver">
+              <img src="https://cdn-icons-png.flaticon.com/512/1159/1159633.png" class="card-icon edit-icon" title="Editar">
+              <img src="https://cdn-icons-png.flaticon.com/512/126/126468.png" class="card-icon delete-icon" title="Eliminar">
+            </div>
+          `;
+
+          li.querySelector('.view-icon').addEventListener('click', () => showEntry(index));
+          li.querySelector('.edit-icon').addEventListener('click', () => editEntry(index));
+          li.querySelector('.delete-icon').addEventListener('click', () => deleteEntry(index));
+
+          entryList.appendChild(li);
+        });
+      }
+
+      function showEntry(index) {
+        const entries = JSON.parse(localStorage.getItem('entries')) || [];
+        const entry = entries[index];
+        currentIndex = index;
+        entryDisplay.classList.remove('hidden');
+        entryForm.classList.add('hidden');
+        welcomeCard.classList.add('hidden');
+        backButton.classList.remove('hidden');
+        exportPDFButton.classList.remove('hidden');
+        document.getElementById('displayTitle').textContent = entry.title;
+        document.getElementById('displayDate').textContent = entry.date;
+        document.getElementById('displayTechnician').textContent = entry.technician;
+        document.getElementById('displaySerial').textContent = localStorage.getItem('scannerSerial');
+        document.getElementById('displayContent').textContent = entry.content;
+      }
+
+      function editEntry(index) {
+        const entries = JSON.parse(localStorage.getItem('entries')) || [];
+        const entry = entries[index];
+        currentIndex = index;
+        entryTitle.value = entry.title;
+        entryTechnician.value = entry.technician;
+        entryContent.value = entry.content;
+        entryStatus.value = entry.status;
+        entryForm.classList.remove('hidden');
+        entryDisplay.classList.add('hidden');
+        welcomeCard.classList.add('hidden');
+        backButton.classList.add('hidden');
+        exportPDFButton.classList.add('hidden');
+      }
+
+      function deleteEntry(index) {
+        const entries = JSON.parse(localStorage.getItem('entries')) || [];
+        entries.splice(index, 1);
+        localStorage.setItem('entries', JSON.stringify(entries));
+        loadEntries();
+      }
+
+      function createEntry() {
+        const entries = JSON.parse(localStorage.getItem('entries')) || [];
+        const newEntry = {
+          title: entryTitle.value,
+          technician: entryTechnician.value,
+          content: entryContent.value,
+          status: entryStatus.value,
+          date: new Date().toLocaleDateString()
+        };
+        if (currentIndex === null) {
+          entries.push(newEntry);
+        } else {
+          entries[currentIndex] = newEntry;
+        }
+        localStorage.setItem('entries', JSON.stringify(entries));
+        entryForm.reset();
+        loadEntries();
+        entryForm.classList.add('hidden');
+        welcomeCard.classList.remove('hidden');
+        currentIndex = null;
+      }
+
+      entryForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        createEntry();
+      });
+
+      backButton.addEventListener('click', () => {
+        entryForm.classList.add('hidden');
+        entryDisplay.classList.add('hidden');
+        welcomeCard.classList.remove('hidden');
+        backButton.classList.add('hidden');
+        exportPDFButton.classList.add('hidden');
+      });
+
+      newEntryButton.addEventListener('click', () => {
+        entryForm.classList.remove('hidden');
+        entryDisplay.classList.add('hidden');
+        welcomeCard.classList.add('hidden');
+        backButton.classList.add('hidden');
+        exportPDFButton.classList.add('hidden');
+      });
+
+      exportAllPDFButton.addEventListener('click', () => {
+        const entries = JSON.parse(localStorage.getItem('entries')) || [];
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        entries.forEach((entry, index) => {
+          doc.text(`Entrada ${index + 1}`, 10, 10 + (index * 10));
+          doc.text(`Título: ${entry.title}`, 10, 20 + (index * 10));
+          doc.text(`Técnico: ${entry.technician}`, 10, 30 + (index * 10));
+          doc.text(`Fecha: ${entry.date}`, 10, 40 + (index * 10));
+          doc.text(`Estado: ${entry.status}`, 10, 50 + (index * 10));
+          doc.text(`Detalles: ${entry.content}`, 10, 60 + (index * 10));
+        });
+
+        doc.save('entradas.pdf');
+      });
+
+      exportExcelButton.addEventListener('click', () => {
+        const entries = JSON.parse(localStorage.getItem('entries')) || [];
+        const worksheet = XLSX.utils.json_to_sheet(entries);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Entradas");
+        XLSX.writeFile(workbook, 'entradas.xlsx');
+      });
+
+      exportPDFButton.addEventListener('click', () => {
+        const entries = JSON.parse(localStorage.getItem('entries')) || [];
+        const entry = entries[currentIndex];
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        doc.text(`Título: ${entry.title}`, 10, 10);
+        doc.text(`Técnico: ${entry.technician}`, 10, 20);
+        doc.text(`Fecha: ${entry.date}`, 10, 30);
+        doc.text(`Estado: ${entry.status}`, 10, 40);
+        doc.text(`Detalles: ${entry.content}`, 10, 50);
+
+        doc.save(`entrada_${entry.title}.pdf`);
+      });
+
+      loadEntries();
+    });
+  </script>
+</body>
+</html>
